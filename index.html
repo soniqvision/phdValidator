@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meta Ads Safe Zone Validator</title>
@@ -32,106 +31,125 @@
             font-weight: bold;
             font-size: 18px;
         }
-
-        /* Overlay for Reels */
-        .overlay-reels-top {
+        .overlay {
             position: absolute;
+            background-color: hwb(64 0% 0% / 0.226); /* Default transparency (opacity 0.226) */
+            pointer-events: none;
+            transition: background-color 0.2s ease;
+        }
+        .overlay.top {
+            height: 14%;
             top: 0;
             left: 0;
             width: 100%;
-            height: 14%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
         }
-        .overlay-reels-left {
-            position: absolute;
+        .overlay.left, .overlay.right {
             top: 0;
+            height: 100%;
+            width: 6%;
+        }
+        .overlay.left {
             left: 0;
-            width: 6%;
-            height: 100%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
         }
-        .overlay-reels-right {
-            position: absolute;
-            top: 0;
+        .overlay.right {
             left: 94%;
-            right: 0;
-            width: 6%;
-            height: 100%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
         }
-        .overlay-reels-bottom {
-            position: absolute;
+        .overlay.bottom {
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 35%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
         }
-        .overlay-reels-bottom-right {
+        .overlay.reels-bottom {
+            height: 35%;
+        }
+        .overlay.stories-bottom {
+            height: 20%;
+        }
+        .overlay.bottom-right {
             position: absolute;
             top: 60%;
             left: 79%;
-            right: 0;
             width: 21%;
             height: 40%;
-            background-color:hwb(64 0% 0% / 0.226); 
-            pointer-events: none;
         }
-
-        /* Overlay for Stories */
-        .overlay-stories-top {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 14%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
+        /* Slider Style */
+        .slider-container {
+            margin: 20px 0;
         }
-        .overlay-stories-left {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 6%;
-            height: 100%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
+        .slider-label {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
         }
-        .overlay-stories-right {
-            position: absolute;
-            top: 0;
-            left: 94%;
-            right: 0;
-            width: 6%;
-            height: 100%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
-        }
-        .overlay-stories-bottom {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 20%;
-            background-color: hwb(64 0% 0% / 0.226);
-            pointer-events: none;
+        .slider {
+            width: 300px;
         }
     </style>
 </head>
 <body>
 
 <div class="upload-area">
-    <label for="ad-image">Upload your Ad image or video for validation:</label>
+    <label for="ad-media">Upload your Ad image or video for validation:</label>
     <input type="file" id="ad-media" accept="image/*, video/*" onchange="loadMedia(event)">
+</div>
+
+<!-- Slider to change overlay transparency -->
+<div class="slider-container">
+    <label class="slider-label" for="overlay-opacity">Overlay Transparency:</label>
+    <input type="range" id="overlay-opacity" class="slider" min="0" max="100" value="22" oninput="adjustOverlayOpacity(this.value)">
 </div>
 
 <div id="media-display-area" class="media-comparison"></div>
 
 <script>
+    // Function to create media frame (either Reels or Stories)
+    function createMediaFrame(mediaSrc, mediaType, frameType) {
+        const frameContainer = document.createElement('div');
+        frameContainer.classList.add('frame-container');
+
+        // Create media element (either image or video)
+        const media = document.createElement(mediaType);
+        media.classList.add('frame');
+        media.src = mediaSrc;
+        if (mediaType === 'video') {
+            media.controls = true;
+        }
+
+        // Add overlays based on frameType
+        const overlays = createOverlays(frameType);
+
+        frameContainer.appendChild(media);
+        frameContainer.appendChild(overlays.safeZone);
+        overlays.elements.forEach(overlay => frameContainer.appendChild(overlay));
+
+        return frameContainer;
+    }
+
+    // Function to create overlays based on frame type (Reels or Stories)
+    function createOverlays(frameType) {
+        const overlayTop = document.createElement('div');
+        const overlayLeft = document.createElement('div');
+        const overlayRight = document.createElement('div');
+        const overlayBottom = document.createElement('div');
+        const overlayBottomRight = document.createElement('div');
+
+        overlayTop.classList.add('overlay', 'top');
+        overlayLeft.classList.add('overlay', 'left');
+        overlayRight.classList.add('overlay', 'right');
+        overlayBottom.classList.add('overlay', 'bottom', frameType === 'Reels' ? 'reels-bottom' : 'stories-bottom');
+        if (frameType === 'Reels') {
+            overlayBottomRight.classList.add('overlay', 'bottom-right');
+        }
+
+        const safeZone = document.createElement('div');
+        safeZone.classList.add('safe-zone');
+
+        return {
+            safeZone,
+            elements: [overlayTop, overlayLeft, overlayRight, overlayBottom, ...(frameType === 'Reels' ? [overlayBottomRight] : [])]
+        };
+    }
+
+    // Function to load media and display side-by-side frames (Reels and Stories)
     function loadMedia(event) {
         const mediaDisplayArea = document.getElementById('media-display-area');
         const file = event.target.files[0];
@@ -140,129 +158,43 @@
         // Clear existing media
         mediaDisplayArea.innerHTML = '';
 
-        // Create Reels and Stories frames
-        const frameContainerReels = document.createElement('div');
-        frameContainerReels.classList.add('frame-container');
+        const mediaSrc = URL.createObjectURL(file);
 
-        const frameContainerStories = document.createElement('div');
-        frameContainerStories.classList.add('frame-container');
+        // Create labels for Reels and Stories
+        const reelsLabel = document.createElement('div');
+        reelsLabel.classList.add('label');
+        reelsLabel.innerText = 'Reels';
 
-        // Labels
-        const labelReels = document.createElement('div');
-        labelReels.classList.add('label');
-        labelReels.innerText = 'Reels';
+        const storiesLabel = document.createElement('div');
+        storiesLabel.classList.add('label');
+        storiesLabel.innerText = 'Stories';
 
-        const labelStories = document.createElement('div');
-        labelStories.classList.add('label');
-        labelStories.innerText = 'Stories';
+        // Create frames for both Reels and Stories
+        const reelsFrame = createMediaFrame(mediaSrc, fileType.startsWith('image/') ? 'img' : 'video', 'Reels');
+        const storiesFrame = createMediaFrame(mediaSrc, fileType.startsWith('image/') ? 'img' : 'video', 'Stories');
 
-        // Safe zones
-        const safeZoneReels = document.createElement('div');
-        safeZoneReels.classList.add('safe-zone');
+        // Append the labels and frames to the media display area
+        mediaDisplayArea.appendChild(reelsLabel);
+        mediaDisplayArea.appendChild(reelsFrame);
+        mediaDisplayArea.appendChild(storiesLabel);
+        mediaDisplayArea.appendChild(storiesFrame);
 
-        const safeZoneStories = document.createElement('div');
-        safeZoneStories.classList.add('safe-zone');
-
-        // Overlays for Reels
-        const overlayReelsTop = document.createElement('div');
-        overlayReelsTop.classList.add('overlay-reels-top');
-
-        const overlayReelsLeft = document.createElement('div');
-        overlayReelsLeft.classList.add('overlay-reels-left');
-
-        const overlayReelsRight = document.createElement('div');
-        overlayReelsRight.classList.add('overlay-reels-right');
-
-        const overlayReelsBottom = document.createElement('div');
-        overlayReelsBottom.classList.add('overlay-reels-bottom');
-
-        const overlayReelsBottomRight = document.createElement('div');
-        overlayReelsBottomRight.classList.add('overlay-reels-bottom-right');
-
-        // Overlays for Stories
-        const overlayStoriesTop = document.createElement('div');
-        overlayStoriesTop.classList.add('overlay-stories-top');
-
-        const overlayStoriesLeft = document.createElement('div');
-        overlayStoriesLeft.classList.add('overlay-stories-left');
-
-        const overlayStoriesRight = document.createElement('div');
-        overlayStoriesRight.classList.add('overlay-stories-right');
-
-        const overlayStoriesBottom = document.createElement('div');
-        overlayStoriesBottom.classList.add('overlay-stories-bottom');
-
-        // Check if the file is an image or a video
-        if (fileType.startsWith('image/')) {
-            const imageReels = document.createElement('img');
-            imageReels.classList.add('frame');
-            imageReels.src = URL.createObjectURL(file);
-            imageReels.onload = () => {
-                URL.revokeObjectURL(imageReels.src); // Release memory
-            };
-
-            const imageStories = document.createElement('img');
-            imageStories.classList.add('frame');
-            imageStories.src = URL.createObjectURL(file);
-            imageStories.onload = () => {
-                URL.revokeObjectURL(imageStories.src); // Release memory
-            };
-            videoReels.onloadeddata = () => {
-                videoReels.play();
-                URL.revokeObjectURL(videoReels.src); // Release memory
-            };
-            
-            videoStories.onloadeddata = () => {
-                videoStories.play();
-                URL.revokeObjectURL(videoStories.src); // Release memory
-            };
-            frameContainerReels.appendChild(imageReels);
-            frameContainerStories.appendChild(imageStories);
-        } else if (fileType.startsWith('video/')) {
-            const videoReels = document.createElement('video');
-            videoReels.classList.add('frame');
-            videoReels.src = URL.createObjectURL(file);
-            videoReels.controls = true;
-            videoReels.onloadeddata = () => {
-                URL.revokeObjectURL(videoReels.src); // Release memory
-            };
-
-            const videoStories = document.createElement('video');
-            videoStories.classList.add('frame');
-            videoStories.src = URL.createObjectURL(file);
-            videoStories.controls = true;
-            videoStories.onloadeddata = () => {
-                URL.revokeObjectURL(videoStories.src); // Release memory
-            };
-
-            frameContainerReels.appendChild(videoReels);
-            frameContainerStories.appendChild(videoStories);
+        // Revoke URL object to release memory
+        if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
+            mediaDisplayArea.querySelectorAll('.frame').forEach(media => {
+                media.onload = () => URL.revokeObjectURL(media.src);
+            });
         }
-
-        // Append safe zones and overlays to Reels frame
-        frameContainerReels.appendChild(safeZoneReels);
-        frameContainerReels.appendChild(overlayReelsTop);
-        frameContainerReels.appendChild(overlayReelsLeft);
-        frameContainerReels.appendChild(overlayReelsRight);
-        frameContainerReels.appendChild(overlayReelsBottom);
-        frameContainerReels.appendChild(overlayReelsBottomRight);
-
-        // Append safe zones and overlays to Stories frame
-        frameContainerStories.appendChild(safeZoneStories);
-        frameContainerStories.appendChild(overlayStoriesTop);
-        frameContainerStories.appendChild(overlayStoriesLeft);
-        frameContainerStories.appendChild(overlayStoriesRight);
-        frameContainerStories.appendChild(overlayStoriesBottom);
-
-        // Append the frames and labels to the media display area
-        mediaDisplayArea.appendChild(labelReels);
-        mediaDisplayArea.appendChild(frameContainerReels);
-        mediaDisplayArea.appendChild(labelStories);
-        mediaDisplayArea.appendChild(frameContainerStories);
     }
 
-
-    
+    // Function to adjust overlay transparency based on slider value
+    function adjustOverlayOpacity(value) {
+        const opacity = value / 100; // Convert value to range between 0 and 1
+        const overlays = document.querySelectorAll('.overlay');
+        overlays.forEach(overlay => {
+            overlay.style.backgroundColor = `hwb(64 0% 0% / ${opacity})`;
+        });
+    }
 </script>
 
 </body>
